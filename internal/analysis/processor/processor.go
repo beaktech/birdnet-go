@@ -855,6 +855,23 @@ func (p *Processor) shouldFilterDetection(settings *conf.Settings, result datast
 		return true, confidenceThreshold
 	}
 
+	// Detection passed the confidence check. If the dynamic threshold lowered
+	// the bar below the configured base, surface that at info level so users
+	// can discover when learning is carrying a detection that would otherwise
+	// have been filtered out at the configured base threshold.
+	if settings.Realtime.DynamicThreshold.Enabled &&
+		result.Confidence < baseThreshold &&
+		confidenceThreshold < baseThreshold {
+		GetLogger().Info("Detection passed via dynamic threshold adjustment",
+			logger.String("species", result.Species),
+			logger.Float32("confidence", result.Confidence),
+			logger.Float32("base_threshold", baseThreshold),
+			logger.Float32("applied_threshold", confidenceThreshold),
+			logger.String("source", p.getDisplayNameForSource(source)),
+			logger.String("model_id", modelID),
+			logger.String("operation", "dynamic_threshold_applied"))
+	}
+
 	// Check species inclusion filter
 	if !settings.IsSpeciesIncluded(result.Species) {
 		if settings.Debug {
